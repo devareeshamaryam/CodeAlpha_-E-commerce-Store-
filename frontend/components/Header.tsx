@@ -1,15 +1,11 @@
  // components/Header.tsx
-// Transparent nav bar designed to sit on top of the Hero's background art.
-// Center logo, left nav links (collapse to a hamburger on small screens),
-// right search + cart. Client component only because of the mobile menu
-// toggle, live cart count state, and the route-aware text color.
-
 "use client";
 
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useCart } from "@/context/CartContext";
 import { BagIcon, CloseIcon, MenuIcon, SearchIcon } from "./icons";
 
 interface NavLink {
@@ -18,46 +14,38 @@ interface NavLink {
 }
 
 const NAV_LINKS: NavLink[] = [
-  { label: "Home", href: "/" },
-  { label: "Shop", href: "/shop" },
+  { label: "Home",    href: "/"        },
+  { label: "Shop",    href: "/shop"    },
   { label: "Contact", href: "/contact" },
 ];
 
-// Routes where the header floats on top of a dark/photo hero and needs
-// light (white) text. Every other route gets dark (black) text since the
-// header sits on a plain/light background there. Add more paths here if
-// another page ever gets its own dark hero section.
-const HERO_PAGES = ["/"];
-
-// Two logo files: a white version for the hero page, a black version for
-// every other page. Drop them in /public with these exact names, or pass
-// a `logoSrc` prop to override per page.
-const HERO_LOGO_SRC = "/download.png"; // white logo, used on hero pages
-const DEFAULT_LOGO_SRC = "/jello.png"; // black logo, used everywhere else
+const HERO_PAGES       = ["/"];
+const HERO_LOGO_SRC    = "/download.png"; // white logo, used on hero pages
+const DEFAULT_LOGO_SRC = "/jello.png";    // black logo, used everywhere else
 
 interface HeaderProps {
-  logoSrc?: string;
-  logoAlt?: string;
-  cartCount?: number;
+  logoSrc?:  string;
+  logoAlt?:  string;
   navLinks?: NavLink[];
 }
 
 export default function Header({
   logoSrc,
-  logoAlt = "Empire",
-  cartCount = 0,
+  logoAlt  = "Empire",
   navLinks = NAV_LINKS,
 }: HeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
-  const pathname = usePathname();
+  const pathname   = usePathname();
+  const { count, openCart } = useCart();
 
-  const isHeroPage = HERO_PAGES.includes(pathname);
-  const textColor = isHeroPage ? "text-white" : "text-black";
+  const isHeroPage      = HERO_PAGES.includes(pathname);
+  const textColor       = isHeroPage ? "text-white" : "text-black";
   const resolvedLogoSrc = logoSrc ?? (isHeroPage ? HERO_LOGO_SRC : DEFAULT_LOGO_SRC);
 
   return (
     <header className={`relative z-50 w-full ${textColor}`}>
       <nav className="relative flex items-center justify-between px-6 py-5 sm:px-10 lg:px-14">
+
         {/* Left: nav links (desktop) */}
         <div className="hidden items-center gap-8 lg:flex">
           {navLinks.map((link) => (
@@ -109,13 +97,22 @@ export default function Header({
             <SearchIcon />
             <span>Search</span>
           </button>
+
+          {/* Cart — opens the drawer, shows live count */}
           <button
             type="button"
-            aria-label={`Cart, ${cartCount} item${cartCount === 1 ? "" : "s"}`}
-            className="flex items-center gap-2 text-sm font-medium transition-opacity hover:opacity-70"
+            onClick={openCart}
+            aria-label={`Cart, ${count} item${count === 1 ? "" : "s"}`}
+            className="relative flex items-center gap-2 text-sm font-medium transition-opacity hover:opacity-70 cursor-pointer"
           >
             <BagIcon />
-            <span>{cartCount}</span>
+            <span>{count}</span>
+            {/* Badge — only visible when cart has items */}
+            {count > 0 && (
+              <span className="absolute -top-2 -right-3 bg-black text-white text-[9px] font-bold min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center leading-none">
+                {count}
+              </span>
+            )}
           </button>
         </div>
       </nav>

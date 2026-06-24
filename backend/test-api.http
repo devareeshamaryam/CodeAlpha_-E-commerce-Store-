@@ -1,0 +1,160 @@
+# E-Commerce API Test File
+# Use REST Client extension in VS Code to run these requests
+# Or use curl/Postman
+
+@baseUrl = http://localhost:5000
+@apiUrl = {{baseUrl}}/api
+
+###############################################################################
+# ROOT & HEALTH
+###############################################################################
+
+### Get API Info
+GET {{baseUrl}}
+
+### Health Check
+GET {{baseUrl}}/health
+
+###############################################################################
+# PRODUCTS API
+###############################################################################
+
+### Get All Products
+GET {{apiUrl}}/products
+
+### Get Products with Filters
+GET {{apiUrl}}/products?category=T-Shirt
+
+### Get Products - Search
+GET {{apiUrl}}/products?search=logo
+
+### Get Products - Price Range
+GET {{apiUrl}}/products?minPrice=10000&maxPrice=15000
+
+### Get Product by ID (replace with actual UUID from your database)
+GET {{apiUrl}}/products/550e8400-e29b-41d4-a716-446655440000
+
+### Get Product by Slug
+GET {{apiUrl}}/products/slug/classic-logo-tee-black
+
+### Create New Product
+POST {{apiUrl}}/products
+Content-Type: application/json
+
+{
+  "name": "Test Product",
+  "slug": "test-product",
+  "price": 15000,
+  "image": "/images/test.png",
+  "category": "T-Shirt",
+  "tag": "NEW",
+  "description": ["Test description", "High quality"],
+  "sizes": ["Small", "Medium", "Large"],
+  "made_to_order_note": "Made to order",
+  "disclaimer": "Colors may vary"
+}
+
+### Update Product (replace ID with actual UUID)
+PUT {{apiUrl}}/products/550e8400-e29b-41d4-a716-446655440000
+Content-Type: application/json
+
+{
+  "name": "Updated Product Name",
+  "price": 16000
+}
+
+### Delete Product (replace ID with actual UUID)
+DELETE {{apiUrl}}/products/550e8400-e29b-41d4-a716-446655440000
+
+###############################################################################
+# ORDERS API
+###############################################################################
+
+### Get All Orders
+GET {{apiUrl}}/orders
+
+### Get Orders by Status
+GET {{apiUrl}}/orders?status=pending
+
+### Get Orders by Email
+GET {{apiUrl}}/orders?email=ahmad@example.com
+
+### Get Order by ID (replace with actual UUID)
+GET {{apiUrl}}/orders/550e8400-e29b-41d4-a716-446655440000
+
+### Create New Order
+POST {{apiUrl}}/orders
+Content-Type: application/json
+
+{
+  "customer_name": "Test Customer",
+  "customer_email": "test@example.com",
+  "customer_phone": "+92-300-1234567",
+  "shipping_address": {
+    "street": "123 Test Street",
+    "city": "Karachi",
+    "state": "Sindh",
+    "zip_code": "75500",
+    "country": "Pakistan"
+  },
+  "items": [
+    {
+      "product_id": "1",
+      "name": "Classic Logo Tee (Black)",
+      "price": 11200,
+      "quantity": 2,
+      "size": "Large"
+    }
+  ]
+}
+
+### Update Order Status (replace ID with actual UUID)
+PATCH {{apiUrl}}/orders/550e8400-e29b-41d4-a716-446655440000/status
+Content-Type: application/json
+
+{
+  "status": "confirmed"
+}
+
+### Delete Order (replace ID with actual UUID)
+DELETE {{apiUrl}}/orders/550e8400-e29b-41d4-a716-446655440000
+
+### Get Order Statistics
+GET {{apiUrl}}/orders/stats/summary
+
+###############################################################################
+# CURL EXAMPLES
+###############################################################################
+
+# Get all products
+# curl http://localhost:5000/api/products
+
+# Create new order
+# curl -X POST http://localhost:5000/api/orders \
+#   -H "Content-Type: application/json" \
+#   -d '{
+#     "customer_name": "Ahmad Ali",
+#     "customer_email": "ahmad@example.com",
+#     "customer_phone": "+92-300-1234567",
+#     "shipping_address": {
+#       "street": "123 Main St",
+#       "city": "Karachi",
+#       "state": "Sindh",
+#       "zip_code": "75500",
+#       "country": "Pakistan"
+#     },
+#     "items": [
+#       {
+#         "product_id": "1",
+#         "name": "Classic Logo Tee",
+#         "price": 11200,
+#         "quantity": 1,
+#         "size": "Large"
+#       }
+#     ]
+#   }'
+
+# Update order status
+# curl -X PATCH http://localhost:5000/api/orders/ORD-001/status \
+#   -H "Content-Type: application/json" \
+#   -d '{"status": "shipped"}'

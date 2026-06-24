@@ -18,7 +18,7 @@ import {
 function ProductCard({ product }: { product: Product }) {
   return (
     <Link
-      href={`/products/${product.slug}`}
+      href={`/shop/${product.slug}`}
       className="flex flex-col bg-[#f2f2f2] cursor-pointer group rounded-sm overflow-hidden hover:shadow-md transition-shadow duration-200"
     >
       <div className="relative w-full overflow-hidden" style={{ paddingBottom: "108%" }}>

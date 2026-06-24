@@ -1,24 +1,23 @@
  // app/layout.tsx
 import type { Metadata } from "next";
-import { displayFont, handwrittenFont, sansFont } from "@/lib/fonts";
+import { CartProvider } from "@/context/CartContext";
+import CartDrawer from "@/components/CartDrawer";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Empire",
-  description: "Other Western Tales",
+  description: "Official Empire Merch Store",
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html
-      lang="en"
-      className={`${displayFont.variable} ${handwrittenFont.variable} ${sansFont.variable}`}
-    >
-      <body className="font-sans">{children}</body>
+    <html lang="en">
+      <body>
+        <CartProvider>
+          {children}
+          <CartDrawer />
+        </CartProvider>
+      </body>
     </html>
   );
 }
