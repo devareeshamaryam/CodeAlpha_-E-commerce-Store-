@@ -1,6 +1,8 @@
+ import dotenv from "dotenv";
+dotenv.config(); // ← safety net - agar index.ts se pehle load ho
+
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
-// Check if environment variables are set
 if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
   throw new Error(
     "Missing Supabase environment variables. Please set SUPABASE_URL and SUPABASE_ANON_KEY in .env file"
@@ -10,7 +12,6 @@ if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_ANON_KEY;
 
-// Create Supabase client
 export const supabase: SupabaseClient = createClient(supabaseUrl, supabaseKey, {
   auth: {
     autoRefreshToken: true,
@@ -18,7 +19,6 @@ export const supabase: SupabaseClient = createClient(supabaseUrl, supabaseKey, {
   },
 });
 
-// Test connection function
 export async function testConnection() {
   try {
     const { data, error } = await supabase.from("products").select("count");

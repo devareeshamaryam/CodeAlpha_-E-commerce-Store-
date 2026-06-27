@@ -1,12 +1,11 @@
+ import dotenv from "dotenv";
+dotenv.config(); // ← FIRST - load env before anything else
+
 import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
-import dotenv from "dotenv";
 import { testConnection } from "./config/supabase";
 import productRoutes from "./routes/products";
 import orderRoutes from "./routes/orders";
-
-// Load environment variables
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -21,7 +20,6 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Request logging middleware
 app.use((req: Request, res: Response, next: NextFunction) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
   next();
@@ -45,7 +43,6 @@ app.get("/", (req: Request, res: Response) => {
 
 app.get("/health", async (req: Request, res: Response) => {
   const dbConnected = await testConnection();
-  
   res.json({
     status: "ok",
     timestamp: new Date().toISOString(),
@@ -54,13 +51,11 @@ app.get("/health", async (req: Request, res: Response) => {
   });
 });
 
-// API Routes
 app.use("/api/products", productRoutes);
 app.use("/api/orders", orderRoutes);
 
 // ─── Error Handling ─────────────────────────────────────────────────────────
 
-// 404 handler
 app.use((req: Request, res: Response) => {
   res.status(404).json({
     error: "Not Found",
@@ -68,7 +63,6 @@ app.use((req: Request, res: Response) => {
   });
 });
 
-// Global error handler
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   console.error("Error:", err);
   res.status(500).json({
@@ -85,8 +79,6 @@ if (process.env.NODE_ENV !== "production") {
     console.log(`\n🚀 Server running on http://localhost:${PORT}`);
     console.log(`📝 Environment: ${process.env.NODE_ENV || "development"}`);
     console.log(`🔗 Frontend URL: ${process.env.FRONTEND_URL || "http://localhost:3000"}`);
-    
-    // Test Supabase connection
     console.log(`\n🔌 Testing Supabase connection...`);
     const connected = await testConnection();
     if (!connected) {
@@ -97,5 +89,4 @@ if (process.env.NODE_ENV !== "production") {
   });
 }
 
-// Export for serverless deployment (Vercel)
 export default app;
