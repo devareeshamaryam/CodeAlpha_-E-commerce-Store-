@@ -4,16 +4,10 @@ import CTABar from "@/components/CTABar";
 import Header from "@/components/Header";
 import Image from "next/image";
 import Link from "next/link";
-import { useState, useMemo } from "react";
-import {
-  CATEGORIES,
-  PRICE_RANGES,
-  SORT_OPTIONS,
-  PRODUCTS,
-  type Product,
-} from "@/lib/products";
+import { useState, useMemo, useEffect } from "react";
+import { CATEGORIES, PRICE_RANGES, SORT_OPTIONS, type Product } from "@/lib/products";
 
-// ─── Product Card ─────────────────────────────────────────────────────────────
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
 function ProductCard({ product }: { product: Product }) {
   return (
@@ -28,7 +22,7 @@ function ProductCard({ product }: { product: Product }) {
           </span>
         </div>
         <Image
-          src={product.image}
+          src={product.image || "/images/placeholder.png"}
           alt={product.name}
           fill
           sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
@@ -47,8 +41,6 @@ function ProductCard({ product }: { product: Product }) {
   );
 }
 
-// ─── Expandable Filter Group ──────────────────────────────────────────────────
-
 function FilterGroup({ title, children }: { title: string; children: React.ReactNode }) {
   const [open, setOpen] = useState(true);
   return (
@@ -65,12 +57,34 @@ function FilterGroup({ title, children }: { title: string; children: React.React
   );
 }
 
-// ─── Shop Page ────────────────────────────────────────────────────────────────
-
 export default function ShopPage() {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [activePrices, setActivePrices] = useState<string[]>([]);
   const [sort, setSort] = useState("Relevance");
+
+  // Fetch products from backend
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        setLoading(true);
+        const res = await fetch(`${API_URL}/products`);
+        const json = await res.json();
+        if (json.success) {
+          setProducts(json.data);
+        } else {
+          setError("Failed to load products");
+        }
+      } catch (err) {
+        setError("Cannot connect to server");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProducts();
+  }, []);
 
   const togglePrice = (label: string) => {
     setActivePrices((prev) =>
@@ -79,12 +93,8 @@ export default function ShopPage() {
   };
 
   const filtered = useMemo(() => {
-    let list = [...PRODUCTS];
-
-    if (activeCategory) {
-      list = list.filter((p) => p.category === activeCategory);
-    }
-
+    let list = [...products];
+    if (activeCategory) list = list.filter((p) => p.category === activeCategory);
     if (activePrices.length > 0) {
       list = list.filter((p) =>
         activePrices.some((label) => {
@@ -93,56 +103,36 @@ export default function ShopPage() {
         })
       );
     }
-
-    if (sort === "Price: Low to High")  list.sort((a, b) => a.price - b.price);
-    if (sort === "Price: High to Low")  list.sort((a, b) => b.price - a.price);
-
+    if (sort === "Price: Low to High") list.sort((a, b) => a.price - b.price);
+    if (sort === "Price: High to Low") list.sort((a, b) => b.price - a.price);
     return list;
-  }, [activeCategory, activePrices, sort]);
-
-  const activeFiltersCount = activePrices.length;
+  }, [products, activeCategory, activePrices, sort]);
 
   return (
     <div className="w-full bg-white min-h-screen">
       <CTABar />
       <Header />
-
       <div className="max-w-[1400px] mx-auto px-6 py-10">
-
-        {/* ── Page Title ── */}
         <h1 className="font-display text-[64px] sm:text-[80px] uppercase leading-none text-black mb-8">
           Categories
         </h1>
 
-        {/* ── Category Pills + Sort ── */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <div className="flex flex-wrap gap-2">
             {CATEGORIES.map((cat) => (
-              <button
-                key={cat}
+              <button key={cat}
                 onClick={() => setActiveCategory(activeCategory === cat ? null : cat)}
-                className={`font-sans px-4 py-2 rounded-full border text-[13px] font-medium transition-all duration-150 cursor-pointer
-                  ${activeCategory === cat
-                    ? "bg-black text-white border-black"
-                    : "bg-white text-black border-[#ccc] hover:border-black"
-                  }`}
-              >
+                className={`font-sans px-4 py-2 rounded-full border text-[13px] font-medium transition-all cursor-pointer
+                  ${activeCategory === cat ? "bg-black text-white border-black" : "bg-white text-black border-[#ccc] hover:border-black"}`}>
                 {cat}
               </button>
             ))}
           </div>
-
-          {/* Sort + count */}
           <div className="flex items-center gap-4 shrink-0">
             <div className="relative">
-              <select
-                value={sort}
-                onChange={(e) => setSort(e.target.value)}
-                className="font-sans text-[13px] text-black border border-[#ccc] rounded-full px-4 py-2 pr-8 appearance-none cursor-pointer focus:outline-none hover:border-black transition-colors bg-white"
-              >
-                {SORT_OPTIONS.map((o) => (
-                  <option key={o}>{o}</option>
-                ))}
+              <select value={sort} onChange={(e) => setSort(e.target.value)}
+                className="font-sans text-[13px] text-black border border-[#ccc] rounded-full px-4 py-2 pr-8 appearance-none cursor-pointer focus:outline-none hover:border-black bg-white">
+                {SORT_OPTIONS.map((o) => <option key={o}>{o}</option>)}
               </select>
               <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px]">▼</span>
             </div>
@@ -152,70 +142,56 @@ export default function ShopPage() {
           </div>
         </div>
 
-        {/* ── Body: Sidebar + Grid ── */}
         <div className="flex gap-10 items-start">
-
-          {/* Sidebar */}
           <aside className="w-[220px] shrink-0 hidden lg:block">
             <div className="flex items-center gap-2 mb-1">
               <span className="font-sans text-[15px] font-semibold text-black">Filters</span>
               <span className="font-sans text-[12px] text-[#888] border border-[#ccc] rounded-full w-6 h-6 flex items-center justify-center">
-                {activeFiltersCount}
+                {activePrices.length}
               </span>
             </div>
-
-            {/* Category Filter */}
             <FilterGroup title="Category">
               <div className="flex flex-col gap-3">
                 {CATEGORIES.map((cat) => (
-                  <label key={cat} className="flex items-center gap-2 cursor-pointer group/item">
-                    <input
-                      type="checkbox"
-                      checked={activeCategory === cat}
+                  <label key={cat} className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={activeCategory === cat}
                       onChange={() => setActiveCategory(activeCategory === cat ? null : cat)}
-                      className="w-4 h-4 rounded border-[#ccc] accent-black cursor-pointer"
-                    />
-                    <span className="font-sans text-[13px] text-[#1a1a1a] group-hover/item:text-black">
-                      {cat}
-                    </span>
+                      className="w-4 h-4 rounded border-[#ccc] accent-black cursor-pointer" />
+                    <span className="font-sans text-[13px] text-[#1a1a1a]">{cat}</span>
                   </label>
                 ))}
               </div>
             </FilterGroup>
-
-            {/* Price Filter */}
             <FilterGroup title="Price">
               <div className="flex flex-col gap-3">
                 {PRICE_RANGES.map((range) => (
-                  <label key={range.label} className="flex items-center gap-2 cursor-pointer group/item">
-                    <input
-                      type="checkbox"
-                      checked={activePrices.includes(range.label)}
+                  <label key={range.label} className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={activePrices.includes(range.label)}
                       onChange={() => togglePrice(range.label)}
-                      className="w-4 h-4 rounded border-[#ccc] accent-black cursor-pointer"
-                    />
-                    <span className="font-sans text-[13px] text-[#1a1a1a] group-hover/item:text-black">
-                      {range.label}
-                    </span>
+                      className="w-4 h-4 rounded border-[#ccc] accent-black cursor-pointer" />
+                    <span className="font-sans text-[13px] text-[#1a1a1a]">{range.label}</span>
                   </label>
                 ))}
               </div>
             </FilterGroup>
-
-            {/* Clear filters */}
             {(activeCategory || activePrices.length > 0) && (
-              <button
-                onClick={() => { setActiveCategory(null); setActivePrices([]); }}
-                className="font-sans text-[12px] text-[#888] underline hover:text-black transition-colors mt-2"
-              >
+              <button onClick={() => { setActiveCategory(null); setActivePrices([]); }}
+                className="font-sans text-[12px] text-[#888] underline hover:text-black mt-2">
                 Clear all filters
               </button>
             )}
           </aside>
 
-          {/* Product Grid */}
           <div className="flex-1">
-            {filtered.length === 0 ? (
+            {loading ? (
+              <div className="flex justify-center py-24">
+                <p className="font-sans text-[14px] text-[#888]">Loading products...</p>
+              </div>
+            ) : error ? (
+              <div className="flex flex-col items-center py-24">
+                <p className="font-sans text-[14px] text-red-500">{error}</p>
+              </div>
+            ) : filtered.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-24 text-center">
                 <p className="font-display text-[32px] uppercase text-[#ccc]">No products found</p>
                 <p className="font-sans text-[13px] text-[#aaa] mt-2">Try adjusting your filters</p>
@@ -228,7 +204,6 @@ export default function ShopPage() {
               </div>
             )}
           </div>
-
         </div>
       </div>
     </div>

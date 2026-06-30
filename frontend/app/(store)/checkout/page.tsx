@@ -1,4 +1,4 @@
-// app/checkout/page.tsx
+ // app/checkout/page.tsx
 "use client";
 
 import CTABar from "@/components/CTABar";
@@ -7,6 +7,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import { useCart } from "@/context/CartContext";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -55,8 +57,10 @@ function Field({
 
 export default function CheckoutPage() {
   const { items, subtotal, clearCart } = useCart();
-  const [placed, setPlaced] = useState(false);
-  const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
+  const [placed, setPlaced]   = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
+  const [errors, setErrors]   = useState<Partial<Record<keyof FormData, string>>>({});
 
   const SHIPPING = subtotal > 50000 ? 0 : 350;
   const TOTAL    = subtotal + SHIPPING;
@@ -90,10 +94,49 @@ export default function CheckoutPage() {
     return Object.keys(e).length === 0;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!validate()) return;
-    setPlaced(true);
-    clearCart();
+    setLoading(true);
+    setApiError(null);
+
+    try {
+      const res = await fetch(`${API_URL}/orders`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customer_name:  `${form.firstName} ${form.lastName}`,
+          customer_email: form.email,
+          customer_phone: form.phone,
+          shipping_address: {
+            street:   form.address,
+            city:     form.city,
+            state:    form.province,
+            zip_code: form.postalCode,
+            country:  "Pakistan",
+          },
+          items: items.map((item) => ({
+            product_id: item.id,
+            name:       item.name,
+            price:      item.price,
+            quantity:   item.quantity,
+            size:       item.size,
+          })),
+        }),
+      });
+
+      const json = await res.json();
+
+      if (json.success) {
+        setPlaced(true);
+        clearCart();
+      } else {
+        setApiError(json.error || "Order place nahi ho saka.");
+      }
+    } catch (err) {
+      setApiError("Server se connect nahi ho saka. Backend chal raha hai?");
+    } finally {
+      setLoading(false);
+    }
   };
 
   // ── Order placed confirmation ──
@@ -108,7 +151,7 @@ export default function CheckoutPage() {
           </div>
           <h1 className="font-display text-[40px] uppercase leading-none text-black">Order Placed!</h1>
           <p className="font-sans text-[14px] text-[#555] leading-relaxed">
-            Thank you for your order. We'll send a confirmation to <strong>{form.email}</strong>.
+            Thank you for your order. We&apos;ll send a confirmation to <strong>{form.email}</strong>.
             Your order will be delivered within <strong>2–5 business days</strong>.
           </p>
           <Link
@@ -147,6 +190,12 @@ export default function CheckoutPage() {
         <h1 className="font-display text-[48px] sm:text-[64px] uppercase leading-none text-black mb-10">
           Checkout
         </h1>
+
+        {apiError && (
+          <div className="bg-red-50 border border-red-200 text-red-600 font-sans text-[13px] px-5 py-3.5 rounded-sm mb-6">
+            ❌ {apiError}
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-12 items-start">
 
@@ -263,9 +312,10 @@ export default function CheckoutPage() {
             <button
               type="button"
               onClick={handleSubmit}
-              className="hidden lg:flex w-full h-14 bg-black text-white font-sans text-[15px] font-semibold uppercase tracking-wide items-center justify-center cursor-pointer hover:bg-[#1a1a1a] transition-colors rounded-sm"
+              disabled={loading}
+              className="hidden lg:flex w-full h-14 bg-black text-white font-sans text-[15px] font-semibold uppercase tracking-wide items-center justify-center cursor-pointer hover:bg-[#1a1a1a] transition-colors rounded-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Place Order · Rs. {TOTAL.toLocaleString("en-PK")}
+              {loading ? "Placing Order..." : `Place Order · Rs. ${TOTAL.toLocaleString("en-PK")}`}
             </button>
           </div>
 
@@ -322,9 +372,10 @@ export default function CheckoutPage() {
             <button
               type="button"
               onClick={handleSubmit}
-              className="lg:hidden w-full h-14 bg-black text-white font-sans text-[15px] font-semibold uppercase tracking-wide flex items-center justify-center cursor-pointer hover:bg-[#1a1a1a] transition-colors rounded-sm"
+              disabled={loading}
+              className="lg:hidden w-full h-14 bg-black text-white font-sans text-[15px] font-semibold uppercase tracking-wide flex items-center justify-center cursor-pointer hover:bg-[#1a1a1a] transition-colors rounded-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Place Order · Rs. {TOTAL.toLocaleString("en-PK")}
+              {loading ? "Placing Order..." : `Place Order · Rs. ${TOTAL.toLocaleString("en-PK")}`}
             </button>
           </div>
 

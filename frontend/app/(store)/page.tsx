@@ -20,7 +20,6 @@ export default function Home() {
     </main>
     <ShopSection />
     <SocialsSection />
-    <Footer />
-    </>
+     </>
   );
 }

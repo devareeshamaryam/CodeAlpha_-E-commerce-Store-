@@ -24,23 +24,26 @@ const HERO_LOGO_SRC    = "/download.png"; // white logo, used on hero pages
 const DEFAULT_LOGO_SRC = "/jello.png";    // black logo, used everywhere else
 
 interface HeaderProps {
-  logoSrc?:  string;
-  logoAlt?:  string;
-  navLinks?: NavLink[];
+  logoSrc?:    string;
+  logoAlt?:    string;
+  navLinks?:   NavLink[];
+  forceWhite?: boolean; // opt-in override for dark-background pages (e.g. /contact)
 }
 
 export default function Header({
   logoSrc,
-  logoAlt  = "Empire",
-  navLinks = NAV_LINKS,
+  logoAlt    = "Empire",
+  navLinks   = NAV_LINKS,
+  forceWhite = false,
 }: HeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const pathname   = usePathname();
   const { count, openCart } = useCart();
 
   const isHeroPage      = HERO_PAGES.includes(pathname);
-  const textColor       = isHeroPage ? "text-white" : "text-black";
-  const resolvedLogoSrc = logoSrc ?? (isHeroPage ? HERO_LOGO_SRC : DEFAULT_LOGO_SRC);
+  const useWhiteStyle    = isHeroPage || forceWhite;
+  const textColor        = useWhiteStyle ? "text-white" : "text-black";
+  const resolvedLogoSrc  = logoSrc ?? (useWhiteStyle ? HERO_LOGO_SRC : DEFAULT_LOGO_SRC);
 
   return (
     <header className={`relative z-50 w-full ${textColor}`}>
@@ -122,7 +125,7 @@ export default function Header({
         <div
           id="mobile-nav"
           className={`space-y-1 px-6 py-4 backdrop-blur-sm lg:hidden ${
-            isHeroPage
+            useWhiteStyle
               ? "bg-black/90 text-white"
               : "bg-white text-black border-t border-black/10"
           }`}

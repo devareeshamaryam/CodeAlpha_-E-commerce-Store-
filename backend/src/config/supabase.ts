@@ -1,27 +1,29 @@
  import dotenv from "dotenv";
-dotenv.config(); // ← safety net - agar index.ts se pehle load ho
+dotenv.config();
 
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
 if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
-  throw new Error(
-    "Missing Supabase environment variables. Please set SUPABASE_URL and SUPABASE_ANON_KEY in .env file"
-  );
+  throw new Error("Missing Supabase environment variables.");
 }
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_ANON_KEY;
+// Admin client — RLS bypass karta hai (sirf backend mein use karo)
+export const supabaseAdmin: SupabaseClient = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY,
+  { auth: { autoRefreshToken: false, persistSession: false } }
+);
 
-export const supabase: SupabaseClient = createClient(supabaseUrl, supabaseKey, {
-  auth: {
-    autoRefreshToken: true,
-    persistSession: false,
-  },
-});
+// Public client — frontend ke liye
+export const supabase: SupabaseClient = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_ANON_KEY,
+  { auth: { autoRefreshToken: true, persistSession: false } }
+);
 
 export async function testConnection() {
   try {
-    const { data, error } = await supabase.from("products").select("count");
+    const { data, error } = await supabaseAdmin.from("products").select("count");
     if (error) throw error;
     console.log("✅ Supabase connection successful");
     return true;

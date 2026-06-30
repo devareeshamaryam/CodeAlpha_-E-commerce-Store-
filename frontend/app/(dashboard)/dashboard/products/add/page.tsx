@@ -3,18 +3,20 @@
 import Link from "next/link";
 import { useState, useRef, DragEvent } from "react";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+
 const TAGS         = ["New Arrival", "Best Seller", "Limited Edition", "Sale", "Exclusive"];
 const SIZE_OPTIONS = ["XS", "S", "M", "L", "XL", "XXL", "Free Size"];
 
 type FormState = {
   name: string; slug: string; tag: string; price: string;
   sizes: string[]; description: string; madeToOrderNote: string;
-  disclaimer: string; image: string;
+  disclaimer: string; image: string; category: string;
 };
 
 const EMPTY: FormState = {
   name: "", slug: "", tag: "", price: "", sizes: [],
-  description: "", madeToOrderNote: "", disclaimer: "", image: "",
+  description: "", madeToOrderNote: "", disclaimer: "", image: "", category: "",
 };
 
 /* ── Image Upload Box Component ─────────────────────────────────────────── */
@@ -48,7 +50,6 @@ function ImageUploadBox({
 
   return (
     <div>
-      {/* Drop Zone */}
       <div
         onClick={() => inputRef.current?.click()}
         onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
@@ -61,14 +62,12 @@ function ImageUploadBox({
         `}
       >
         {value ? (
-          /* Preview */
           <div className="flex flex-col items-center gap-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={value} alt="Preview" className="w-36 h-36 object-contain rounded-sm" />
             <p className="font-sans text-[11px] text-[#888]">Click or drag to replace</p>
           </div>
         ) : (
-          /* Empty state */
           <>
             <div className="w-12 h-12 bg-[#f0f0f0] rounded-sm flex items-center justify-center text-[#bbb]">
               <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -87,8 +86,6 @@ function ImageUploadBox({
           </>
         )}
       </div>
-
-      {/* Hidden file input */}
       <input
         ref={inputRef}
         type="file"
@@ -96,8 +93,6 @@ function ImageUploadBox({
         className="hidden"
         onChange={onFileChange}
       />
-
-      {/* Remove button */}
       {value && (
         <button
           type="button"
@@ -146,14 +141,19 @@ function slugify(str: string) {
   return str.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 }
 
+const CATEGORIES = ["T-Shirt", "Jacket", "Pants", "Sneakers"];
+
 export default function AddProductPage() {
-  const [form, setForm]     = useState<FormState>(EMPTY);
-  const [saved, setSaved]   = useState(false);
-  const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({});
+  const [form, setForm]       = useState<FormState>(EMPTY);
+  const [saved, setSaved]     = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
+  const [errors, setErrors]   = useState<Partial<Record<keyof FormState, string>>>({});
 
   const set = (key: keyof FormState, value: string | string[]) => {
     setForm((f) => ({ ...f, [key]: value }));
     setErrors((e) => ({ ...e, [key]: undefined }));
+    setApiError(null);
   };
 
   const toggleSize = (size: string) =>
@@ -165,6 +165,7 @@ export default function AddProductPage() {
     const e: typeof errors = {};
     if (!form.name.trim())        e.name        = "Product name is required.";
     if (!form.slug.trim())        e.slug        = "Slug is required.";
+    if (!form.category)           e.category    = "Please select a category.";
     if (!form.tag)                e.tag         = "Please select a tag.";
     if (!form.price || isNaN(Number(form.price)) || Number(form.price) <= 0)
                                   e.price       = "Enter a valid price.";
@@ -174,12 +175,43 @@ export default function AddProductPage() {
     return Object.keys(e).length === 0;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!validate()) return;
-    console.log("New product:", { ...form, price: Number(form.price), description: form.description.split("\n").filter(Boolean) });
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
-    setForm(EMPTY);
+    setLoading(true);
+    setApiError(null);
+
+    try {
+      const res = await fetch(`${API_URL}/products`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name:              form.name,
+          slug:              form.slug,
+          tag:               form.tag,
+          price:             Number(form.price),
+          sizes:             form.sizes,
+          category:          form.category,
+          description:       form.description.split("\n").filter(Boolean),
+          made_to_order_note: form.madeToOrderNote || null,
+          disclaimer:        form.disclaimer || null,
+          image:             form.image || "/images/placeholder.png",
+        }),
+      });
+
+      const json = await res.json();
+
+      if (json.success) {
+        setSaved(true);
+        setTimeout(() => setSaved(false), 3000);
+        setForm(EMPTY);
+      } else {
+        setApiError(json.error || "Failed to save product.");
+      }
+    } catch (err) {
+      setApiError("Server se connect nahi ho saka. Backend chal raha hai?");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -200,7 +232,13 @@ export default function AddProductPage() {
           <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
           </svg>
-          Product saved successfully.
+          Product saved successfully!
+        </div>
+      )}
+
+      {apiError && (
+        <div className="bg-red-50 border border-red-200 text-red-600 font-sans text-[13px] px-5 py-3.5 rounded-sm mb-6">
+          ❌ {apiError}
         </div>
       )}
 
@@ -217,18 +255,24 @@ export default function AddProductPage() {
               placeholder="e.g. premium-khaddar-suit" className={inputCls(!!errors.slug)} />
           </Field>
           <div className="grid grid-cols-2 gap-4">
+            <Field label="Category" error={errors.category} required>
+              <select value={form.category} onChange={(e) => set("category", e.target.value)} className={inputCls(!!errors.category)}>
+                <option value="">Select a category</option>
+                {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </Field>
             <Field label="Tag" error={errors.tag} required>
               <select value={form.tag} onChange={(e) => set("tag", e.target.value)} className={inputCls(!!errors.tag)}>
                 <option value="">Select a tag</option>
                 {TAGS.map((t) => <option key={t} value={t}>{t}</option>)}
               </select>
             </Field>
-            <Field label="Price (Rs.)" error={errors.price} required>
-              <input type="number" value={form.price}
-                onChange={(e) => set("price", e.target.value)}
-                placeholder="e.g. 4500" className={inputCls(!!errors.price)} />
-            </Field>
           </div>
+          <Field label="Price (Rs.)" error={errors.price} required>
+            <input type="number" value={form.price}
+              onChange={(e) => set("price", e.target.value)}
+              placeholder="e.g. 4500" className={inputCls(!!errors.price)} />
+          </Field>
         </Section>
 
         <Section title="Sizes">
@@ -271,12 +315,18 @@ export default function AddProductPage() {
         </Section>
 
         <div className="flex items-center gap-4 pt-2 border-t border-[#e8e8e8]">
-          <button type="button" onClick={handleSubmit}
-            className="flex items-center gap-2 bg-black text-white font-sans text-[12px] font-semibold uppercase tracking-wider px-6 py-3 rounded-sm hover:bg-[#1a1a1a] transition-colors cursor-pointer">
-            <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-            </svg>
-            Save Product
+          <button type="button" onClick={handleSubmit} disabled={loading}
+            className="flex items-center gap-2 bg-black text-white font-sans text-[12px] font-semibold uppercase tracking-wider px-6 py-3 rounded-sm hover:bg-[#1a1a1a] transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+            {loading ? (
+              <>⏳ Saving...</>
+            ) : (
+              <>
+                <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+                Save Product
+              </>
+            )}
           </button>
           <Link href="/dashboard/products" className="font-sans text-[12px] text-[#888] hover:text-black transition-colors">
             Cancel
